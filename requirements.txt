@@ -1,4 +1,6 @@
 groq
-youtube-transcript-api
 duckduckgo-search
 colorama
+ipykernel
+requests
+yt-dlp
