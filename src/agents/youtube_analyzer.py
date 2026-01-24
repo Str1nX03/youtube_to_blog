@@ -54,6 +54,7 @@ class YoutubeAnalyzeAgent(BaseAgent):
 
         ydl_opts = {
             'skip_download': True,      # We only want metadata/subs, not video
+            'format': 'best',           # Ensure a valid format is selected to prevent "not available" errors
             'writesubtitles': True,
             'writeautomaticsub': True,  # Get auto-generated subs if manual aren't there
             'subtitleslangs': ['en', 'hi', 'ja', 'es'], # Prioritize English, then others
@@ -68,8 +69,8 @@ class YoutubeAnalyzeAgent(BaseAgent):
             'no_call_home': True,
             # Spoof a common browser User-Agent
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            # Use Android client which often has relaxed bot checks
-            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+            # Removing extractor_args to avoid conflicts with browser cookies
+            # 'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
 
         try:
