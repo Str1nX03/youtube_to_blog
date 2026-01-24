@@ -4,6 +4,9 @@ from groq import Groq
 from colorama import Fore, Style
 from src.logger import logging
 from src.exception import CustomException
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class BaseAgent:
 

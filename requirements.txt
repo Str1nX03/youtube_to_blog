@@ -4,3 +4,5 @@ colorama
 ipykernel
 requests
 yt-dlp
+flask
+python-dotenv

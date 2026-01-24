@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator | AI BlogGen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/product.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Simple Markdown Parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="/" class="back-link">← Back</a>
+            <h2>Agent Workspace</h2>
+        </header>
+
+        <section class="input-section">
+            <div class="input-box">
+                <input type="text" id="youtube-url" placeholder="Paste YouTube Video URL here...">
+                <button id="generate-btn">
+                    <span class="btn-text">Generate Blog</span>
+                    <div class="loader" id="btn-loader"></div>
+                </button>
+            </div>
+            <div id="status-message" class="status">Ready to deploy agents.</div>
+        </section>
+
+        <section class="output-section">
+            <div class="output-box">
+                <div class="output-header">
+                    <span>Generated Content</span>
+                    <button id="copy-btn" disabled>Copy Markdown</button>
+                </div>
+                <div id="blog-content" class="markdown-body">
+                    <!-- Content will appear here -->
+                    <div class="placeholder-text">
+                        Result will appear here.<br>
+                        1. Analyst will summarize the video.<br>
+                        2. Researcher will verify facts.<br>
+                        3. Writer will draft the post.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/product.js') }}"></script>
+</body>
+</html>
