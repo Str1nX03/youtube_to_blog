@@ -64,7 +64,7 @@ class YoutubeAnalyzeAgent(BaseAgent):
             'cache_dir': '/tmp/yt-dlp-cache' if is_vercel else None,
             # EXTRA OPTIONS TO BYPASS BOT DETECTION
             'nocheckcertificate': True,
-            'ignoreerrors': True,  # Capture errors manually to allow fallback logic if needed
+            'ignoreerrors': False,  # CHANGED: False so we see the REAL error if it fails
             'no_call_home': True,
             # Spoof a common browser User-Agent
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
@@ -79,7 +79,8 @@ class YoutubeAnalyzeAgent(BaseAgent):
                     info = ydl.extract_info(video_url, download=False)
                 except Exception as dl_error:
                     logging.error(f"yt-dlp extraction error: {dl_error}")
-                    return None
+                    # Return None so we can handle it gracefully in the caller or raise custom message
+                    raise CustomException(f"YouTube Download Error: {str(dl_error)}", sys)
                 
                 if not info:
                     logging.error("yt-dlp returned no information (extraction failed).")
