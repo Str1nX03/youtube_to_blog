@@ -21,11 +21,16 @@ class YoutubeAnalyzeAgent(BaseAgent):
         """
         logging.info("Attempting to fetch transcript via yt-dlp...")
 
+        cookies_arg = "cookies.txt" if os.path.exists("cookies.txt") else None
+        if cookies_arg:
+            logging.info(f"Using cookies from {os.path.abspath(cookies_arg)}")
+
         ydl_opts = {
             'skip_download': True,  
             'writesubtitles': True,
             'writeautomaticsub': True,  
             'subtitleslangs': ['en', 'hi', 'ja', 'es'],
+            'cookiefile': cookies_arg,
             'quiet': True,
             'no_warnings': True,
         }
