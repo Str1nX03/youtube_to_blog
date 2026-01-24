@@ -1,5 +1,5 @@
 from src.agent_engine.base_agent import BaseAgent
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 import sys
 import json
 from src.exception import CustomException
@@ -13,7 +13,7 @@ class ResearchAgent(BaseAgent):
             role = "You are a web researcher. Your job is to find the latest developments, facts, and external links related to a given topic to enrich content."
         )
 
-    def search_web(self, query, max_results = 5):
+    def search_web(self, query, max_results = 3):
         """Performs a web search using DuckDuckGo."""
         
         try:
@@ -56,7 +56,6 @@ class ResearchAgent(BaseAgent):
                 
                 OUTPUT FORMAT:
                 Return ONLY a raw JSON list of strings. Do not use Markdown code blocks.
-                Example: ["Magnus Carlsen 2026 Candidates Tournament news", "latest updates on FIDE Candidates 2026 location", "current world chess rankings 2025"]
             """
 
             search_queries_raw = self.generate(search_plan_prompt)
