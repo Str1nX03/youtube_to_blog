@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Blog Agent | Turn Video into Value</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">AI BlogGen</div>
+        <button id="nav-cta" class="nav-btn">Launch App</button>
+    </nav>
+
+    <main class="hero-section">
+        <div class="hero-content">
+            <h1>Turn YouTube Videos into <span class="gradient-text">Viral Blogs</span></h1>
+            <p>Deploy a multi-agent AI system to analyze, research, and write professional articles from any video content in seconds.</p>
+            <button id="hero-cta" class="primary-btn">Get Started</button>
+        </div>
+        <div class="hero-visual">
+            <div class="agent-card analyst">Analyst</div>
+            <div class="agent-card researcher">Researcher</div>
+            <div class="agent-card writer">Writer</div>
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/landing.js') }}"></script>
+</body>
+</html>
