@@ -1,5 +1,5 @@
 groq
-duckduckgo-search
+ddgs
 colorama
 ipykernel
 requests
