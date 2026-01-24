@@ -1,13 +1,13 @@
 import os
 import sys
-from src.logger import logging
+import json
+import logging
 import yt_dlp
 import requests
 from src.agent_engine.base_agent import BaseAgent
 from src.exception import CustomException
 
 class YoutubeAnalyzeAgent(BaseAgent):
-
     def __init__(self):
         super().__init__(
             name="Youtube Analyst",
@@ -20,43 +20,60 @@ class YoutubeAnalyzeAgent(BaseAgent):
         This is the most robust method against YouTube blocks.
         """
         logging.info("Attempting to fetch transcript via yt-dlp...")
-
-        cookies_arg = "cookies.txt" if os.path.exists("cookies.txt") else None
-        if cookies_arg:
-            logging.info(f"Using cookies from {os.path.abspath(cookies_arg)}")
+        
+        # Check for cookies file
+        # On Vercel, the filesystem is read-only except /tmp
+        # We disable cookies on Vercel to prevent Read-only filesystem errors
+        is_vercel = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
+        
+        if is_vercel:
+            cookies_arg = None
+            logging.info("Running on Vercel: Cookies disabled to prevent filesystem errors.")
+        else:
+            cookies_arg = "cookies.txt" if os.path.exists("cookies.txt") else None
+            if cookies_arg:
+                logging.info(f"Using cookies from {os.path.abspath(cookies_arg)}")
 
         ydl_opts = {
-            'skip_download': True,  
+            'skip_download': True,      # We only want metadata/subs, not video
             'writesubtitles': True,
-            'writeautomaticsub': True,  
-            'subtitleslangs': ['en', 'hi', 'ja', 'es'],
+            'writeautomaticsub': True,  # Get auto-generated subs if manual aren't there
+            'subtitleslangs': ['en', 'hi', 'ja', 'es'], # Prioritize English, then others
             'cookiefile': cookies_arg,
             'quiet': True,
             'no_warnings': True,
+            # CRITICAL FOR VERCEL: Point cache to writable /tmp directory
+            'cache_dir': '/tmp/yt-dlp-cache' if is_vercel else None,
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(video_url, download=False)
                 
+                # 1. Check for manual subtitles
                 subtitles = info.get('subtitles', {})
+                # 2. Check for automatic captions
                 auto_captions = info.get('automatic_captions', {})
-                languages = ['en', 'en-orig', 'en-US', 'en-GB']
+                
+                # Merge them (prioritize manual)
                 all_subs = {**auto_captions, **subtitles}
                 
                 if not all_subs:
                     return None
 
+                # Find the best language (Prioritize 'en', then 'en-orig', then any)
                 chosen_lang = None
-                for lang in languages:
+                for lang in ['en', 'en-orig', 'en-US', 'en-GB']:
                     if lang in all_subs:
                         chosen_lang = lang
                         break
                 
+                # If no English, take the first available one
                 if not chosen_lang and all_subs:
                     chosen_lang = list(all_subs.keys())[0]
                     logging.warning(f"No English subs found. Falling back to language: {chosen_lang}")
 
+                # Get the JSON3 format URL (it's the easiest to parse)
                 subs_list = all_subs.get(chosen_lang, [])
                 json3_url = None
                 
@@ -65,17 +82,22 @@ class YoutubeAnalyzeAgent(BaseAgent):
                         json3_url = sub.get('url')
                         break
                 
+                # If no json3, try extracting from the first available url
                 if not json3_url and subs_list:
+                     # Often the first one is usable (vtt or srv3)
+                     # But for simplicity, let's try to fetch the first url and hope it's text-based
                      json3_url = subs_list[0].get('url')
 
                 if not json3_url:
                     return None
 
+                # Fetch the actual subtitle data
                 response = requests.get(json3_url)
                 if response.status_code != 200:
                     logging.error(f"Failed to download subs from {json3_url}")
                     return None
 
+                # Parse JSON3 format
                 try:
                     data = response.json()
                     events = data.get('events', [])
@@ -88,6 +110,7 @@ class YoutubeAnalyzeAgent(BaseAgent):
                                 full_text.append(txt)
                     return " ".join(full_text)
                 except Exception:
+                    # If it wasn't JSON (e.g. VTT), simply return the raw text
                     return response.text
 
         except Exception as e:
@@ -97,12 +120,15 @@ class YoutubeAnalyzeAgent(BaseAgent):
     def analyze(self, video_url):
         try:
             logging.info(f"Analyzing video: {video_url}")
-            
+
+            # --- TRY YT-DLP EXTRACTION ---
             transcript = self.download_subs_with_ytdlp(video_url)
             
             if not transcript:
                 return "Error: Unable to extract transcript (yt-dlp failed). The video might not have captions."
             
+            # --- LLM ANALYSIS ---
+            # Truncate to avoid token limits (15k chars is approx 3-4k tokens)
             truncated_transcript = transcript[:15000]
             
             prompt = f"""
