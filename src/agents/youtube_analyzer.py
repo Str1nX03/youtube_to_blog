@@ -46,9 +46,11 @@ class YoutubeAnalyzeAgent(BaseAgent):
             'cache_dir': '/tmp/yt-dlp-cache' if is_vercel else None,
             # EXTRA OPTIONS TO BYPASS BOT DETECTION
             'nocheckcertificate': True,
-            'ignoreerrors': True,  # This can cause extract_info to return None on error
+            # 'ignoreerrors': True, # Removed to catch actual exceptions for better debugging/handling
             'no_call_home': True,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            # USE ANDROID CLIENT TO BYPASS "SIGN IN" CHECK
+            'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
 
         try:
@@ -60,7 +62,6 @@ class YoutubeAnalyzeAgent(BaseAgent):
                     logging.error(f"yt-dlp extraction error: {dl_error}")
                     return None
                 
-                # CRITICAL FIX: Check if info is None (happens if ignoreerrors=True and extraction fails)
                 if not info:
                     logging.error("yt-dlp returned no information (extraction failed).")
                     return None
