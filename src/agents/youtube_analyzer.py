@@ -21,18 +21,36 @@ class YoutubeAnalyzeAgent(BaseAgent):
         """
         logging.info("Attempting to fetch transcript via yt-dlp...")
         
-        # Check for cookies file
-        # On Vercel, the filesystem is read-only except /tmp
-        # We disable cookies on Vercel to prevent Read-only filesystem errors
+        # Detect Environment
         is_vercel = os.environ.get('VERCEL') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME')
         
-        if is_vercel:
-            cookies_arg = None
-            logging.info("Running on Vercel: Cookies disabled to prevent filesystem errors.")
-        else:
-            cookies_arg = "cookies.txt" if os.path.exists("cookies.txt") else None
-            if cookies_arg:
-                logging.info(f"Using cookies from {os.path.abspath(cookies_arg)}")
+        # --- COOKIE MANAGEMENT ---
+        # Goal: Provide cookies to yt-dlp to bypass "Sign in" checks.
+        cookies_arg = None
+        
+        # 1. Try Environment Variable (Best for Vercel/Production)
+        # Content of cookies.txt should be stored in 'YOUTUBE_COOKIES' env var
+        env_cookies = os.environ.get('YOUTUBE_COOKIES')
+        if env_cookies:
+            try:
+                # Write to a temporary file because yt-dlp expects a file path
+                temp_cookies_path = "/tmp/cookies.txt"
+                with open(temp_cookies_path, "w") as f:
+                    f.write(env_cookies)
+                cookies_arg = temp_cookies_path
+                logging.info("Using cookies from YOUTUBE_COOKIES environment variable.")
+            except Exception as e:
+                logging.warning(f"Failed to write temp cookies file: {e}")
+
+        # 2. Try Local File (Best for Local Development)
+        elif os.path.exists("cookies.txt"):
+            # Only use if NOT on Vercel, OR if on Vercel but somehow the file exists and we want to try it
+            # (Note: On Vercel root is read-only, but reading is fine. Writing lockfiles causes issues)
+            cookies_arg = "cookies.txt"
+            logging.info("Using local cookies.txt file.")
+        
+        if not cookies_arg and is_vercel:
+             logging.warning("Running on Vercel without cookies. YouTube might block this request.")
 
         ydl_opts = {
             'skip_download': True,      # We only want metadata/subs, not video
@@ -42,14 +60,15 @@ class YoutubeAnalyzeAgent(BaseAgent):
             'cookiefile': cookies_arg,
             'quiet': True,
             'no_warnings': True,
-            # CRITICAL FOR VERCEL: Point cache to writable /tmp directory
+            # CRITICAL FOR VERCEL: Point cache to writable /tmp directory to avoid Read-only errors
             'cache_dir': '/tmp/yt-dlp-cache' if is_vercel else None,
             # EXTRA OPTIONS TO BYPASS BOT DETECTION
             'nocheckcertificate': True,
-            # 'ignoreerrors': True, # Removed to catch actual exceptions for better debugging/handling
+            'ignoreerrors': True,  # Capture errors manually to allow fallback logic if needed
             'no_call_home': True,
+            # Spoof a common browser User-Agent
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            # USE ANDROID CLIENT TO BYPASS "SIGN IN" CHECK
+            # Use Android client which often has relaxed bot checks
             'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
         }
 
