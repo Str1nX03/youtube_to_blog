@@ -7,7 +7,7 @@ from src.exception import CustomException
 
 class BaseAgent:
 
-    def __init__(self, name, role, model_name = "llama-3.1-8b-instant"):
+    def __init__(self, name, role, model_name = "llama-3.3-70b-versatile"):
 
         self.name = name
         self.role = role
