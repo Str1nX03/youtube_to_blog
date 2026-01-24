@@ -44,11 +44,23 @@ class YoutubeAnalyzeAgent(BaseAgent):
             'no_warnings': True,
             # CRITICAL FOR VERCEL: Point cache to writable /tmp directory
             'cache_dir': '/tmp/yt-dlp-cache' if is_vercel else None,
+            # EXTRA OPTIONS TO BYPASS BOT DETECTION
+            'nocheckcertificate': True,
+            'ignoreerrors': True,
+            'no_call_home': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(video_url, download=False)
+                # Attempt extraction
+                try:
+                    info = ydl.extract_info(video_url, download=False)
+                except Exception as dl_error:
+                    logging.error(f"yt-dlp extraction error: {dl_error}")
+                    # If blocked, we might return None here or raise
+                    # But let's check if we got partial info
+                    return None
                 
                 # 1. Check for manual subtitles
                 subtitles = info.get('subtitles', {})
@@ -59,6 +71,7 @@ class YoutubeAnalyzeAgent(BaseAgent):
                 all_subs = {**auto_captions, **subtitles}
                 
                 if not all_subs:
+                    logging.warning("No subtitles found in video metadata.")
                     return None
 
                 # Find the best language (Prioritize 'en', then 'en-orig', then any)
@@ -89,12 +102,19 @@ class YoutubeAnalyzeAgent(BaseAgent):
                      json3_url = subs_list[0].get('url')
 
                 if not json3_url:
+                    logging.warning("Could not find a valid subtitle URL.")
                     return None
 
                 # Fetch the actual subtitle data
-                response = requests.get(json3_url)
+                # Using a session with headers might help bypass some checks
+                session = requests.Session()
+                session.headers.update({
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                })
+                response = session.get(json3_url)
+                
                 if response.status_code != 200:
-                    logging.error(f"Failed to download subs from {json3_url}")
+                    logging.error(f"Failed to download subs from {json3_url}. Status: {response.status_code}")
                     return None
 
                 # Parse JSON3 format
@@ -114,7 +134,10 @@ class YoutubeAnalyzeAgent(BaseAgent):
                     return response.text
 
         except Exception as e:
-            logging.error(f"yt-dlp failed: {str(e)}")
+            logging.error(f"yt-dlp critical failure: {str(e)}")
+            # On Vercel, if this fails due to IP blocking, we might want to return a helpful message
+            if "Sign in to confirm" in str(e):
+                return "Error: YouTube blocked the request from this server IP. Try running locally."
             raise CustomException(e, sys)
 
     def analyze(self, video_url):
@@ -125,8 +148,11 @@ class YoutubeAnalyzeAgent(BaseAgent):
             transcript = self.download_subs_with_ytdlp(video_url)
             
             if not transcript:
-                return "Error: Unable to extract transcript (yt-dlp failed). The video might not have captions."
+                return "Error: Unable to extract transcript (yt-dlp failed or blocked). The video might not have captions."
             
+            if "Error:" in transcript: # Pass through the specific error message from above
+                return transcript
+
             # --- LLM ANALYSIS ---
             # Truncate to avoid token limits (15k chars is approx 3-4k tokens)
             truncated_transcript = transcript[:15000]
