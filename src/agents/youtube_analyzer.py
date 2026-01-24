@@ -37,7 +37,13 @@ class YoutubeAnalyzeAgent(BaseAgent):
                 logging.info("Using cookies from YOUTUBE_COOKIES environment variable.")
             except Exception as e:
                 logging.warning(f"Failed to write temp cookies file: {e}")
-        
+                
+        elif os.path.exists("cookies.txt"):
+            # Only use if NOT on Vercel, OR if on Vercel but somehow the file exists and we want to try it
+            # (Note: On Vercel root is read-only, but reading is fine. Writing lockfiles causes issues)
+            cookies_arg = "cookies.txt"
+            logging.info("Using local cookies.txt file.")
+
         if not cookies_arg and is_vercel:
              logging.warning("Running on Vercel without cookies. YouTube might block this request.")
 
