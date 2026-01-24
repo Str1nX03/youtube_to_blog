@@ -46,7 +46,7 @@ class YoutubeAnalyzeAgent(BaseAgent):
             'cache_dir': '/tmp/yt-dlp-cache' if is_vercel else None,
             # EXTRA OPTIONS TO BYPASS BOT DETECTION
             'nocheckcertificate': True,
-            'ignoreerrors': True,
+            'ignoreerrors': True,  # This can cause extract_info to return None on error
             'no_call_home': True,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         }
@@ -58,10 +58,13 @@ class YoutubeAnalyzeAgent(BaseAgent):
                     info = ydl.extract_info(video_url, download=False)
                 except Exception as dl_error:
                     logging.error(f"yt-dlp extraction error: {dl_error}")
-                    # If blocked, we might return None here or raise
-                    # But let's check if we got partial info
                     return None
                 
+                # CRITICAL FIX: Check if info is None (happens if ignoreerrors=True and extraction fails)
+                if not info:
+                    logging.error("yt-dlp returned no information (extraction failed).")
+                    return None
+
                 # 1. Check for manual subtitles
                 subtitles = info.get('subtitles', {})
                 # 2. Check for automatic captions
